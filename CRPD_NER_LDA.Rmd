@@ -1,0 +1,459 @@
+---
+title: "CRPD_NER_LDA"
+author: "Dr. Derrick L. Cogburn"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+#use_python("/path/to/python")
+use_python("/Users/derrickcogburn/miniconda3/envs/textmining/bin/python")
+```
+
+Import necessary Python libraries.
+
+```{python}
+import pdfplumber
+import nltk
+import gensim
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from gensim import corpora, models
+import os
+
+nltk.download('punkt')
+nltk.download('stopwords')
+```
+
+We will now take an approach to importing the text from the CRPD State Reports data using the pdfplumber package, and at the same time, we will creating document-level variables based on the filename of each report.
+
+```{python}
+import pdfplumber
+import os
+
+def extract_text_pdfplumber(pdf_path):
+    text = ''
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text()
+    return text
+# For some reason, I am not able to make the relative path name work here. If anyone else uses this code chunk, please change the directory path to your own directory path to the State Reports folder. 
+directory_path = '/Users/derrickcogburn/Dropbox (Personal)/Big Data Text Analytics - Spring 2024/Student Labs ITEC-SIS 724/CRPD Analysis HICSS-58/CRPD_Data/State Reports'
+documents = []
+
+for filename in os.listdir(directory_path):
+    if filename.endswith('.pdf'):
+        # Split the filename to extract country, session number, and year
+        base_name = filename[:-4]  # Remove the '.pdf' extension
+        parts = base_name.split('_')
+        if len(parts) == 3:
+            country, session_number, year = parts
+            file_path = os.path.join(directory_path, filename)
+            text = extract_text_pdfplumber(file_path)
+
+            # Create a dictionary for each document
+            document = {
+                'country': country,
+                'session_number': session_number,
+                'year': year,
+                'text': text
+            }
+            documents.append(document)
+
+            print(f"Processed {filename}:")
+            print(f"Country: {country}, Session Number: {session_number}, Year: {year}")
+            print("\n---\n")
+
+# Example of accessing the data
+for doc in documents:
+    print(f"Country: {doc['country']}, Session: {doc['session_number']}, Year: {doc['year']}, Text: {doc['text'][:100]}")  # Print the first 100 characters of text
+```
+
+Then, we will store the resulting dictionary in the project directory as a JSON object for easier retrevial later.
+
+```{python}
+import json
+
+# Assuming 'documents' is your list of dictionaries
+with open('documents.json', 'w') as f:
+    json.dump(documents, f)
+
+print("Documents saved to 'documents.json'")
+```
+
+To load this data back into Python, you can use the following code.
+
+```{python}
+import json
+with open('documents.json', 'r') as f:
+    documents = json.load(f)
+
+print("Documents loaded successfully.")
+# Example: print the first document
+print(documents[0])
+```
+
+Now, we will move on to our Named Entity Recognition (NER) analysis. We will begin by importing the SpaCy Python library, and the smaller english model: en_core_web_sm.
+
+```{python}
+import spacy
+
+# Load the SpaCy model
+nlp = spacy.load('en_core_web_sm')
+```
+
+Now, we will define a function to extract named entities from a text document.
+
+```{python}
+def extract_named_entities(text):
+    doc = nlp(text)
+    named_entities = []
+    for ent in doc.ents:
+        named_entities.append((ent.text, ent.label_))
+    return named_entities
+```
+
+Now, we will test our process by extracting the named entities from the first document in the list.
+
+```{python}
+# Assuming 'documents' is your list of dictionaries
+text = documents[0]['text']
+named_entities = extract_named_entities(text)
+print(named_entities)
+```
+
+Now, that we know our NER process works, we will extract named entities from all documents and store them in a list called all_named_entities. The text data will be saved as tuples, for example ('United Nations', 'ORG').
+
+```{python}
+all_named_entities = []
+for doc in documents:
+    text = doc['text']
+    named_entities = extract_named_entities(text)
+    all_named_entities.append(named_entities)
+    
+print(all_named_entities)
+```
+
+Now, let's visualize the most common named entities in the documents.
+
+```{python}
+from collections import Counter
+
+# Flatten the list of named entities
+flattened_named_entities = [entity for doc_entities in all_named_entities for entity in doc_entities]
+
+# Count the frequency of each named entity
+named_entity_counts = Counter(flattened_named_entities)
+
+# Print the most common named entities
+print(named_entity_counts.most_common(10))
+```
+
+Now we will visualize the most common named entities by type. We use a horizontal bar chart.
+
+```{python}
+import matplotlib.pyplot as plt
+from collections import Counter
+
+# Assume flattened_named_entities is defined
+# Example: flattened_named_entities = [('Entity1', 'PERSON'), ('Entity2', 'ORG'), ...]
+
+# Extract the named entity types and their counts
+entity_types = [entity[1] for entity in flattened_named_entities]
+entity_type_counts = Counter(entity_types)
+
+# Get the most common named entity types and their counts
+most_common_entities = entity_type_counts.most_common()
+
+# Unzip the types and their counts
+types, counts = zip(*most_common_entities)
+
+# Plot the most common named entity types using a horizontal bar chart
+plt.figure(figsize=(12, 6))
+plt.barh(types, counts)  # Use barh for horizontal bars
+plt.xlabel('Frequency')
+plt.ylabel('Named Entity Type')
+plt.title('Common Named Entity Types in CRPD State Reports')
+plt.subplots_adjust(left=0.3)
+plt.show()
+```
+
+Now, to deepen our analysis, we will count the number of named entities for each common type in the SpaCy model. Since we had some problems with our initial for loop, we are adding a check to ensure that each entity is a tuple with two elements.
+
+```{python}
+from collections import Counter, defaultdict
+
+# Assuming each item in named_entities is a tuple (entity_text, entity_type)
+entity_type_counts = defaultdict(Counter)
+
+for named_entities in all_named_entities:
+    for entity in named_entities:
+        if not isinstance(entity, tuple) or len(entity) != 2:
+            print(f"Unexpected structure: {entity}")
+        else:
+            entity_text, entity_type = entity
+            entity_type_counts[entity_type][entity_text] += 1
+```
+
+Now, we will identify the top 10 elements for each entity type, beginning with the ORG entity type.
+
+```{python}
+top_orgs = entity_type_counts['ORG'].most_common(10)
+
+# Print top 10 organizations
+print("Top 10 ORG Entities:")
+for org, count in top_orgs:
+    print(f"{org}: {count}")
+```
+
+Now, we will visualize the top 10 organizations using a horizontal bar chart.
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Get data for plotting
+orgs, counts = zip(*top_orgs)  # Unpack the list of tuples into two tuples
+
+# Create a bar chart
+plt.figure(figsize=(10, 5))
+plt.barh(orgs, counts, color='blue')
+plt.xlabel('Organizations')
+plt.ylabel('Counts')
+plt.title('Top 10 ORG Entities in CRPD State Reports')
+plt.xticks(rotation=45)
+plt.subplots_adjust(left=0.3)
+plt.show()
+```
+
+Now, we will continue by identifing the top 10 elements in the PERSON entity type.
+
+```{python}
+top_persons = entity_type_counts['PERSON'].most_common(10)
+
+# Print top 10 organizations
+print("Top 10 PERSON Entities:")
+for person, count in top_persons:
+    print(f"{person}: {count}")
+```
+
+Now, we will visualize the top 10 people in the PERSON entity type using a horizontal bar chart.
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Get data for plotting
+persons, counts = zip(*top_persons)  # Unpack the list of tuples into two tuples
+
+# Create a bar chart
+plt.figure(figsize=(10, 5))
+plt.barh(persons, counts, color='blue')
+plt.xlabel('Persons')
+plt.ylabel('Counts')
+plt.title('Top 10 PERSON Entities in CRPD State Reports')
+plt.xticks(rotation=45)
+plt.subplots_adjust(left=0.3)
+plt.show()
+```
+
+Now, we will continue by identifing the top 10 elements in the LAW entity type.
+
+```{python}
+top_laws = entity_type_counts['LAW'].most_common(10)
+
+# Print top 10 laws
+print("Top 10 LAW Entities:")
+for law, count in top_laws:
+    print(f"{law}: {count}")
+```
+
+Now, we will visualize the top 10 laws in the LAW entity type using a horizontal bar chart.
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Get data for plotting
+law, counts = zip(*top_laws)  # Unpack the list of tuples into two tuples
+
+# Create a bar chart
+plt.figure(figsize=(10, 5))
+plt.barh(law, counts, color='blue')
+plt.xlabel('Laws')
+plt.ylabel('Counts')
+plt.title('Top 10 LAW Entities in CRPD State Reports')
+plt.xticks(rotation=45)
+plt.subplots_adjust(left=0.3)
+plt.show()
+```
+
+Now, we will continue by identifing the top 10 elements in the GPE entity type.
+
+```{python}
+top_gpe = entity_type_counts['GPE'].most_common(10)
+
+# Print top 10 GPE entities
+print("Top 10 GPE Entities:")
+for gpe, count in top_gpe:
+    print(f"{gpe}: {count}")
+```
+
+Now, we will visualize the top 10 gpe in the GPE entity type using a horizontal bar chart.
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Get data for plotting
+gpe, counts = zip(*top_gpe)  # Unpack the list of tuples into two tuples
+
+# Create a bar chart
+plt.figure(figsize=(10, 5))
+plt.barh(gpe, counts, color='blue')
+plt.xlabel('GPE')
+plt.ylabel('Counts')
+plt.title('Top 10 GPE Entities in CRPD State Reports')
+plt.xticks(rotation=45)
+plt.subplots_adjust(left=0.3)
+plt.show()
+```
+
+Now, we will continue by identifing the top 10 elements in the NORP entity type, focused on National, or Religious, or Political groups.
+
+```{python}
+top_norp = entity_type_counts['NORP'].most_common(10)
+
+# Print top 10 NORP entities
+print("Top 10 NORP Entities:")
+for norp, count in top_norp:
+    print(f"{norp}: {count}")
+```
+
+Now, we will visualize the top 10 norp in the NORP entity type using a horizontal bar chart.
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Get data for plotting
+norp, counts = zip(*top_norp)  # Unpack the list of tuples into two tuples
+
+# Create a bar chart
+plt.figure(figsize=(10, 5))
+plt.barh(norp, counts, color='blue')
+plt.xlabel('NORP')
+plt.ylabel('Counts')
+plt.title('Top 10 NORP Entities in CRPD State Reports')
+plt.xticks(rotation=45)
+plt.subplots_adjust(left=0.3)
+plt.show()
+```
+
+Finally, we will turn our analysis to the LDA topic modeling.
+
+First, we will import the necessary libraries.
+
+```{python}
+import gensim
+import gensim.corpora as corpora
+from gensim.models import LdaModel
+from gensim.models.coherencemodel import CoherenceModel
+from nltk.corpus import stopwords
+import spacy
+
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
+```
+
+Now we will prepare our text data for LDA topic modeling.
+
+This is the revised code chunk:
+
+```{python}
+import spacy
+from nltk.corpus import stopwords
+import nltk
+nltk.download('stopwords')
+
+# Load English tokenizer, tagger, parser, and NER from SpaCy
+nlp = spacy.load("en_core_web_sm", disable=['parser', 'ner'])
+
+# Prepare stop words
+stop_words = stopwords.words('english')
+
+# Function to process the texts
+def process_texts(documents):
+    texts_out = []
+    for doc in documents:
+        text = doc['text']
+        spacy_doc = nlp(text)
+        # Tokenize and clean up text
+        tokens = [token.lemma_ for token in spacy_doc if token.pos_ in ['NOUN', 'ADJ', 'VERB', 'ADV']]
+        # Remove stopwords and short tokens
+        tokens = [token for token in tokens if token not in stop_words and len(token) > 3]
+        texts_out.append(tokens)
+    return texts_out
+
+processed_texts = process_texts(documents)
+```
+
+Now we will create our dictionary and corpus.
+
+```{python}
+import gensim.corpora as corpora
+
+# Create Dictionary and Corpus needed for Topic Modeling
+id2word = corpora.Dictionary(processed_texts)
+corpus = [id2word.doc2bow(text) for text in processed_texts]
+```
+
+Now, we build and train our LDA model.
+
+```{python}
+from gensim.models import LdaModel
+
+# Build LDA model
+lda_model = LdaModel(corpus=corpus,
+                     id2word=id2word,
+                     num_topics=10, 
+                     random_state=100,
+                     update_every=1,
+                     chunksize=100,
+                     passes=10,
+                     alpha='auto')
+
+# Print the topics identified by LDA model
+for idx, topic in lda_model.print_topics(-1):
+    print('Topic: {} \nWords: {}'.format(idx, topic))
+```
+
+Now, let's evaluate the model using the Coherence Score.
+
+```{python}
+from gensim.models.coherencemodel import CoherenceModel
+
+# Compute Coherence Score
+coherence_model_lda = CoherenceModel(model=lda_model, texts=processed_texts, dictionary=id2word, coherence='c_v')
+coherence_lda = coherence_model_lda.get_coherence()
+print('\nCoherence Score: ', coherence_lda)
+```
+
+Now, we will visualize the topics using the pyLDAvis library. Let's first prepare the visualization.
+
+```{python}
+import pyLDAvis.gensim_models as gensimvis
+import pyLDAvis
+
+# Prepare the visualization
+#pyLDAvis.enable_notebook()  # Only if you are using Jupyter Notebook
+
+lda_display = gensimvis.prepare(lda_model, corpus, id2word, sort_topics=False)
+
+# Display the visualization
+#pyLDAvis.display(lda_display)
+
+# Save the visualization as an HTML file
+pyLDAvis.save_html(lda_display, 'lda_visualization.html')
+
+```
+
+Finally, we will save the LDA model for future use.

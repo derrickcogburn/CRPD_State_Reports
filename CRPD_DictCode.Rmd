@@ -1,0 +1,494 @@
+---
+title: "CRPD Dictionary"
+author: "Theodore Ochieng"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# README
+- This is the code for Dictionary Creation.
+  - The created dictionary is saved as an RDS object that can then be imported into other files for             application.
+  
+- It includes some basic testing code to make sure the dictionary is working but for full or additional applied analysis of the dictionary, check file CRPD_Stream1.Rmd; Part 3: Dictionary Analysis.
+
+
+```{r Load Packages}
+library(tidyverse)
+library(quanteda)
+```
+
+## Basic CRPD Dictionary
+```{r Create Entries}
+# Create dictionary entry objects
+
+# Article 1 - Purpose
+entry_cat_Article1 <- list(
+  Paragraph_1 = c("promote respect"),
+  Paragraph_2 = c("long term", "sensory", "impairment*", "hinder")
+  )
+
+# Article 2 - Definitions
+entry_cat_Article2 <- list(
+  Paragraph_1 = c("purpose* present convention"),
+  Paragraph_2 = c("display text", "tactile", "print", "multimedia", "audio", "plain language", "human reader", "communication technology"),
+  Paragraph_3 = c("spoken", "signed language*", "non spoken"),
+  Paragraph_4 = c("distinction", "exclusion", "impairing", "nullify*", "forms discrimination", "denial reasonable"),
+  Paragraph_5 = c("appropriate modification", "imposing", "disproportionate", "undue burden"),
+  Paragraph_6 = c("design product*", "service* usable", "need adaptation", "specialized design", "exclude assistive")
+  )
+
+# Article 3 - General Principles
+entry_cat_Article3 <- list(
+  Paragraph_1 = c("principles present convention"),
+  Paragraph_2 = c("respect inherent dignity", "individual autonomy", "independence person*"),
+  Paragraph_3 = c("non discrimination"),
+  Paragraph_4 = c("inclusion society"),
+  Paragraph_5 = c("respect difference", "part human diversity", "humanity"),
+  Paragraph_6 = c("equality opportunity"),
+  Paragraph_8 = c("equality between"),
+  Paragraph_9 = c("evolving capacit*", "right children", "preserve")
+  )
+
+# Article 4 - General Obligations
+entry_cat_Article4 <- list(
+  Paragraph_1a = c("adopt appropriate legislative", "implementation rights recognized"),
+  Paragraph_1b = c("modify", "abolish", "constitute discrimination"),
+  Paragraph_1c = c("account protection"),
+  Paragraph_1d = c("refrain", "inconsistent", "public authorit*", "act conformity"),
+  Paragraph_1e = c("private enterprise"),
+  Paragraph_1f = c("universally designed", "equipment facilit*", "minimum possible adaptation", "least cost", "promote availability use", "promote universal design", "development standard*"),
+  Paragraph_1g = c("priority"),
+  Paragraph_1h = c("support services facilities"),
+  Paragraph_1i = c("train* professionals staff", "assistance service*"),
+  Paragraph_2 = c("cultural right*", "available resource*", "framework international cooperation", "progressive*", "immediately applicable"),
+  Paragraph_3 = c("development implementation legislation", "decision-making", "actively involve"),
+  Paragraph_4 = c("conducive", "derogation", "pursuant", "pretext", "lesser extent"),
+  Paragraph_5 = c("federal", "limitation*", "exception*")
+  )
+
+# Article 5 - Equality and Non-Discrimination
+entry_cat_Article5 <- list(
+  Paragraph_1 = c("equal protection", "equal benefit"),
+  Paragraph_2 = c("legal protection", "against discrimination"),
+  Paragraph_3 = c("promote equality"),
+  Paragraph_4 = c("accelerate", "achieve", "de facto")
+  )
+
+# Article 6 - Women with Disabilities
+entry_cat_Article6 <- list(
+  Paragraph_1 = c("multiple discrimination"),
+  Paragraph_2 = c("empowerment")
+  )
+
+# Article 7 - Children with Disabilities
+entry_cat_Article7 <- list(
+  Paragraph_2 = c("best interests", "primary consideration"),
+  Paragraph_3 = c("weight", "due weight", "maturity")
+  )
+
+# Article 8 - Awareness-raising
+entry_cat_Article8 <- list(
+  Paragraph_1a = c("raise", "raise awareness", "family level", "foster respect"),
+  Paragraph_1b = c("combat", "stereotype*", "harmful", "practice*", "sex"),
+  Paragraph_1c = c("promote awareness", "capability", "capabilities"),
+  Paragraph_2a = c("public awareness"),
+  Paragraph_2ai = c("nurture", "receptiveness"),
+  Paragraph_2aii = c("social awareness", "positive", "perception*"),
+  Paragraph_2aiii = c("promote recognition", "merit*"),
+  Paragraph_2b = c("early age", "attitude"),
+  Paragraph_2c = c("portray", "manner consistent"),
+  Paragraph_2d = c("awareness-training")
+  )
+
+# Article 9 - Accessibility
+entry_cat_Article9 <- list(
+  Paragraph_1 = c("physical environment", "elimination", "obstacle*"),
+  Paragraph_1a = c("road*", "indoor", "outdoor"),
+  Paragraph_1b = c("electronic", "emergency"),
+  Paragraph_2a = c("promulgate", "minimum standards"),
+  Paragraph_2c = c("provide training", "stakeholder*", "facing"),
+  Paragraph_2d = c("signage", "read", "understand forms"),
+  Paragraph_2e = c("reader*"),
+  Paragraph_2g = c("promote access", "new information"),
+  Paragraph_2h = c("production", "early stage", "minimum cost")
+  )
+
+# Article 10 - Right to Life
+entry_cat_Article10 <- list(
+  Paragraph_1 = c("human being", "inherent right", "effective enjoyment")
+  )
+
+# Article 11 - Situations of Risk and Humanitarian Emergencies
+entry_cat_Article11 <- list(
+  Paragraph_1 = c("humanitarian", "safety", "risk", "armed", "natural", "disaster*")
+  )
+
+# Article 12 - Equal Recognition Before the Law
+entry_cat_Article12 <- list(
+  Paragraph_1 = c("recognition everywhere", "persons before"),
+  Paragraph_2 = c("enjoy legal capacity"),
+  Paragraph_3 = c("provide access"),
+  Paragraph_4 = c("effective safeguard*", "prevent abuse", "preference*", "conflict of interest", "undue influence", "proportional", "tailor*", "circumstance*", "shortest time", "regular review", "impartial authority", "judicial body"),
+  Paragraph_5 = c("inherit", "control", "financial affairs", "bank", "loan*", "mortgage*", "financial credit", "arbitrarily deprived")
+  )
+
+# Article 13 - Access to justice
+entry_cat_Article13 <- list(
+  Paragraph_1 = c("justice", "procedural", "age appropriate accommodation*", "role", "participant*", "witnesses", "legal proceeding", "investigative", "preliminary stage*"),
+  Paragraph_2 = c("administration of justice", "police", "prison")
+  )
+
+# Article 14 - Liberty and security of person
+entry_cat_Article14 <- list(
+  Paragraph_1b = c("unlawfully", "deprivation", "existence", "justify"),
+  Paragraph_2 = c("compliance")
+  )
+
+# Article 15 - Freedom from Torture or Cruel, Inhuman or Degrading Treatment or Punishment
+entry_cat_Article15 <- list(
+  Paragraph_1 = c("torture", "cruel", "inhuman", "degrading treatment", "punishment", "free consent", "scientific", "experimentation")
+  )
+
+# Article 16 - Freedom from Exploitation, Violence and Abuse
+entry_cat_Article16 <- list(
+  Paragraph_1 = c("outside", "exploitation", "violence", "gender based"),
+  Paragraph_2 = c("age sensitive", "caregiver*", "protection service*", "disability sensitive"),
+  Paragraph_3 = c("effectively monitor*", "independent authorit*"),
+  Paragraph_4 = c("cognitive", "psychological", "recovery", "reintegration", "victim*", "welfare", "self respect", "age specific"),
+  Paragraph_5 = c("child focused", "exploitation", "identified", "investigated", "prosecuted")
+  )
+
+# Article 17 - Protecting the Integrity of the Person
+entry_cat_Article17 <- list(
+  Paragraph_1 = c("integrity")
+  )
+
+# Article 18 - Liberty of Movement and Nationality
+entry_cat_Article18 <- list(
+  Paragraph_1 = c("integrity", "movement", "nationality"),
+  Paragraph_1a = c("change", "nationality arbitrarily"),
+  Paragraph_1b = c("documentation", "relevant process*", "immigration", "liberty of movement"),
+  Paragraph_1c = c("leave"),
+  Paragraph_1d = c("right to enter", "own country"),
+  Paragraph_2 = c("registered immediately", "birth")
+  )
+
+# Article 19 - Living Independently and Being Included in the Community
+entry_cat_Article19 <- list(
+  Paragraph_1a = c("particular living arrangement"),
+  Paragraph_1b = c("residential", "community support service", "personal assistance", "support living", "isolation"),
+  Paragraph_1c = c("community service*", "general population", "responsive")
+  )
+
+# Article 20 - Personal Mobility
+entry_cat_Article20 <- list(
+  Paragraph_1a = c("personal mobility"),
+  Paragraph_1b = c("quality mobility"),
+  Paragraph_1c = c("specialist"),
+  Paragraph_1d = c("produce")
+  )
+
+# Article 21 - Freedom of Expression and Opinion, and Access to Information
+entry_cat_Article21 <- list(
+  Paragraph_1 = c("freedom of expression", "seek", "impart", "idea*"),
+  Paragraph_1a = c("information intended", "timely", "additional cost"),
+  Paragraph_1b = c("alternative communication", "accessible mean*", "official interaction*"),
+  Paragraph_1c = c("usable format"),
+  Paragraph_1d = c("mass media", "service* accessible")
+  )
+
+# Article 22 - Respect for Privacy
+entry_cat_Article22 <- list(
+  Paragraph_1 = c("unlawful interference", "other type*", "unlawful attack*", "hono*", "reputation*", "interference"),
+  Paragraph_2 = c("protect privacy", "rehabilitation information")
+  )
+
+# Article 23 - Respect for Home and the Family
+entry_cat_Article23 <- list(
+  Paragraph_1 = c("marriage", "parenthood"),
+  Paragraph_1a = c("marriageable", "marry", "found", "full consent", "spouse*"),
+  Paragraph_1b = c("decide freely", "responsibly", "spacing", "age-appropriate information", "reproductive", "family planning"),
+  Paragraph_1c = c("retain", "fertility"),
+  Paragraph_2 = c("guardian*", "ward*", "trustee*", "adopt* children", "concept", "national legislation", "paramount", "child rearing"),
+  Paragraph_3 = c("family life", "conceal*", "abandon*", "neglect", "segregation children"),
+  Paragraph_4 = c("separat*", "against will", "competent authorities", "judicial review"),
+  Paragraph_5 = c("immediate family", "unable care", "alternative care", "wider", "family setting")
+  )
+
+# Article 24 - Education
+entry_cat_Article24 <- list(
+  Paragraph_1 = c("inclusive education", "lifelong learning"),
+  Paragraph_1a = c("human potential", "self worth"),
+  Paragraph_1b = c("personality", "talent*", "creativity", "physical abilit*", "fullest potential"),
+  Paragraph_1c = c("participate effectively", "free society"),
+  Paragraph_2a = c("compulsory primary education"),
+  Paragraph_2b = c("free primary"),
+  Paragraph_2c = c("individual’s requirements"),
+  Paragraph_2d = c("support required", "within general education", "effective education"),
+  Paragraph_2e = c("individualized"),
+  Paragraph_3 = c("learn life", "social development skill*"),
+  Paragraph_3a = c("script", "orientation", "mentor*"),
+  Paragraph_3b = c("learning sign", "deaf community"),
+  Paragraph_3c = c("blind", "deafblind", "academic"),
+  Paragraph_4 = c("teacher*", "qualified", "train professional*", "incorporate", "disability awareness", "appropriate augmentative", "technique*"),
+  Paragraph_5 = c("tertiary", "vocational training", "adult education")
+  )
+
+# Article 25 - Health
+entry_cat_Article25 <- list(
+  Paragraph_1 = c("attainable standard", "gender sensitive", "health related"),
+  Paragraph_1a = c("affordable health", "affordable healthcare", "sexual", "reproductive health", "population based", "public health"),
+  Paragraph_1b = c("specifically", "early identification", "intervention", "services design*", "minimize", "prevent further", "among children"),
+  Paragraph_1d = c("health professional*", "same quality", "informed", "raising awareness", "ethical standard*", "private health care", "private healthcare"),
+  Paragraph_1e = c("insurance", "national law", "reasonable manner"),
+  Paragraph_1f = c("discriminatory denial", "fluid*")
+  )
+
+# Article 26 - Habilitation and Rehabilitation
+entry_cat_Article26 <- list(
+  Paragraph_1 = c("maximum independence", "full physical", "vocational abilit*", "comprehensive habilitation", "social service*"),
+  Paragraph_1a = c("earliest", "multidisciplinary", "assessment", "individual need*"),
+  Paragraph_1b = c("support participation", "voluntary"),
+  Paragraph_2 = c("development initial", "work* habilitation"),
+  Paragraph_3 = c("use assistive device*", "relate habilitation")
+  )
+
+# Article 27 - Work and Employment
+entry_cat_Article27 <- list(
+  Paragraph_1 = c("right opportunity", "gain", "work freely", "work environment", "right work", "course employment"),
+  Paragraph_1a = c("form* employment", "recruitment", "hiring", "continuance"),
+  Paragraph_1b = c("favourable condition*", "favorable condition*", "remuneration", "value", "healthy working", "harassment", "redress", "grievance*"),
+  Paragraph_1c = c("exercise labo*", "trade", "union"),
+  Paragraph_1d = c("general technical", "guidance", "placement"),
+  Paragraph_1e = c("employment opportunit*", "career advancement", "finding", "obtaining", "returning"),
+  Paragraph_1f = c("self employment", "entrepreneur*", "cooperative*", "business"),
+  Paragraph_1g = c("public sector"),
+  Paragraph_1h = c("private sector", "affirmative action", "incentive*"),
+  Paragraph_1j = c("acquisition", "work experience", "open labo*"),
+  Paragraph_1k = c("professional rehabilitation", "retention", "return work"),
+  Paragraph_2 = c("slavery", "servitude", "forced", "compulsory labo*")
+  )
+
+# Article 28 - Adequate Standard of Living and Social Protection
+entry_cat_Article28 <- list(
+  Paragraph_1 = c("adequate standard", "adequate food", "cloth*", "improvement", "living condition*"),
+  Paragraph_2a = c("clean", "water", "affordable service*", "disability related need*"),
+  Paragraph_2b = c("social protection", "poverty reduction"),
+  Paragraph_2c = c("situation* poverty", "disability-related expense*", "adequate training", "counsel*", "financial assistance", "respite"),
+  Paragraph_2d = c("public housing"),
+  Paragraph_2e = c("retirement")
+  )
+
+# Article 29 - Participation in Political and Public Life
+entry_cat_Article29 <- list(
+  Paragraph_1 = c("political right*"),
+  Paragraph_1a = c("public life", "chosen representative"),
+  Paragraph_1ai = c("voting procedure*", "voting facilit*", "voting material*", "easy understand"),
+  Paragraph_1aii = c("vote secret ballot", "referendum*", "intimidation", "stand election*", "hold office", "public function", "level* government"),
+  Paragraph_1aiii = c("free expression", "elector*"),
+  Paragraph_1b = c("conduct", "public affair*"),
+  Paragraph_1bi = c("non governmental", "association*", "political life", "political part*"),
+  Paragraph_1bii = c("forming", "joining", "represent person*", "local")
+  )
+
+# Article 30 - Participation in Cultural Life, Recreation, Leisure and Sport
+entry_cat_Article30 <- list(
+  Paragraph_1 = c("cultural life"),
+  Paragraph_1a = c("access cultural"),
+  Paragraph_1b = c("television", "film*", "cultural activit*"),
+  Paragraph_1c = c("cultural performance*", "museum*", "cinema*", "librar*", "tourism service*", "monument*", "site*", "cultural importance"),
+  Paragraph_2 = c("creative", "artistic", "intellectual potential", "enrichment"),
+  Paragraph_3 = c("intellectual property", "unreasonable", "discriminatory barrier"),
+  Paragraph_4 = c("specific cultural", "deaf culture"),
+  Paragraph_5a = c("mainstream sporting"),
+  Paragraph_5b = c("disability specific", "instruction"),
+  Paragraph_5c = c("venue*"),
+  Paragraph_5d = c("play", "school system")
+  )
+
+# Article 31 - Statistics and Data Collection
+entry_cat_Article31 <- list(
+  Paragraph_1 = c("collect", "statistical", "research data", "collecting"),
+  Paragraph_1a = c("data protection", "confidentiality", "respect privacy"),
+  Paragraph_1b = c("internationally accepted norm*", "ethical principle*", "use statistics"),
+  Paragraph_2 = c("information collected", "disaggregate*", "assess implementation"),
+  Paragraph_3 = c("assume responsibility", "dissemination")
+  )
+
+# Article 32 - International Cooperation
+entry_cat_Article32 <- list(
+  Paragraph_1 = c("national effort*", "partnership", "regional organi*"),
+  Paragraph_1a = c("international development"),
+  Paragraph_1b = c("capacity building", "exchange", "sharing information", "best practice*"),
+  Paragraph_1c = c("cooperation research", "access scientific", "technical knowledge"),
+  Paragraph_1d = c("economic assistance", "sharing accessible", "transfer technolog*")
+  )
+
+# Article 33 - National Implementation and Monitoring
+entry_cat_Article33 <- list(
+  Paragraph_1 = c("system organi*", "focal", "within government", "coordination mechanism", "related action", "different sector*", "different level*"),
+  Paragraph_2 = c("legal administrative system*", "independent mechanism", "status", "national institution*"),
+  Paragraph_3 = c("monitoring process")
+  )
+
+# Article 34 - Committee on the Rights of Persons with Disabilities
+entry_cat_Article34 <- list(
+  Paragraph_2 = c("membership", "maximum number"),
+  Paragraph_3 = c("personal capacity", "moral*", "recogni* competence", "nominating"),
+  Paragraph_4 = c("equitable", "geographical", "civilization", "principal", "legal system*", "balanced", "gender representation", "participation expert*"),
+  Paragraph_5 = c("elected secret ballot", "quorum", "largest", "absolute majority"),
+  Paragraph_6 = c("initial election", "date entry", "letter states parties", "nomination*", "alphabetical"),
+  Paragraph_7 = c("elected term", "eligible", "re-election", "first election", "expire", "chairperson"),
+  Paragraph_8 = c("additional member*", "regular election*"),
+  Paragraph_9 = c("die", "dies", "died", "resign*", "longer", "possess* qualifications", "meeting requirement*"),
+  Paragraph_10 = c("rules procedure"),
+  Paragraph_11 = c("effective performance", "convene initial meeting"),
+  Paragraph_12 = c("emolument", "terms conditions"),
+  Paragraph_13 = c("privilege*", "immunities")
+  )
+
+# Article 35 - Reports by States Parties
+entry_cat_Article35 <- list(
+  Paragraph_1 = c("comprehensive report", "progress"),
+  Paragraph_2 = c("subsequent report*", "committee request*"),
+  Paragraph_3 = c("guidelines applicable", "content report*"),
+  Paragraph_4 = c("comprehensive initial", "repeat", "transparent"),
+  Paragraph_5 = c("indicate", "degree fulfillment")
+  )
+
+# Article 36 - Consideration of Reports
+entry_cat_Article36 <- list(
+  Paragraph_1 = c("shall forward", "further information", "relevant implementation"),
+  Paragraph_2 = c("overdue", "examine implementation", "reliable", "relevant report"),
+  Paragraph_3 = c("make available"),
+  Paragraph_4 = c("widely available", "facilitate access"),
+  Paragraph_5 = c("transmit", "address request*", "indication*", "technical advice")
+  )
+
+# Article 37 - Cooperation between States Parties and the Committee
+entry_cat_Article37 <- list(
+  Paragraph_1 = c("cooperate", "assist member*"),
+  Paragraph_2 = c("ways means", "national capacit*")
+  )
+
+# Article 38 - Relationship of the Committee with Other Bodies
+entry_cat_Article38 <- list(
+  Paragraph_1 = c("encourage international cooperation"),
+  Paragraph_1a = c("scope", "invite specialized", "expert advice", "respective mandate*"),
+  Paragraph_1b = c("discharge*", "instituted", "treaty", "treaties", "reporting guideline*", "duplication", "overlap")
+  )
+
+# Article 39 - Report of the Committee
+entry_cat_Article39 <- list(
+  Paragraph_1 = c("economic social council", "examination report*", "comment*")
+  )
+
+# Article 40 - Conference of States Parties
+entry_cat_Article40 <- list(
+  Paragraph_1 = c("meet regularly", "consider any matter", "regard implementation"),
+  Paragraph_2 = c("subsequent meeting*", "biennially", "upon decision")
+  )
+
+# Article 41 - Depositary
+entry_cat_Article41 <- list(
+  Paragraph_1 = c("shall depositary")
+  )
+
+# Article 42 - Signature
+entry_cat_Article42 <- list(
+  Paragraph_1 = c("signature", "headquarter*")
+  )
+
+# Article 43 - Consent to be Bound
+entry_cat_Article43 <- list(
+  Paragraph_1 = c("subject ratification", "signatory", "open accession")
+  )
+
+# Article 44 - Regional Integration Organizations
+entry_cat_Article44 <- list(
+  Paragraph_1 = c("constituted", "sovereign", "given region", "transfer* competence", "instruments formal", "substantial modification"),
+  Paragraph_2 = c("reference*", "within limit*"),
+  Paragraph_3 = c("instrument deposited"),
+  Paragraph_4 = c("matters within competence", "vote conference", "votes equal", "exercises right")
+  )
+
+# Article 45 - Entry into Force
+entry_cat_Article45 <- list(
+  Paragraph_1 = c("instrument ratification"),
+  Paragraph_2 = c("organization ratifying", "formally confirming")
+  )
+
+# Article 46 - Reservations
+entry_cat_Article46 <- list(
+  Paragraph_1 = c("incompatible", "object"),
+  Paragraph_2 = c("withdrawn")
+  )
+
+# Article 47 - Amendments
+entry_cat_Article47 <- list(
+  Paragraph_1 = c("proposed amendment*", "notified", "favour", "favor", "auspice*", "adopted majority"),
+  Paragraph_2 = c("amendment adopted", "date adoption", "binding"),
+  Paragraph_3 = c("consensus", "exclusively")
+  )
+
+# Article 48 - Denunciation
+entry_cat_Article48 <- list(
+  Paragraph_1 = c("denounce", "written notification", "denunciation", "receipt")
+  )
+
+# Article 49 - Accessible Format
+entry_cat_Article49 <- list(
+  Paragraph_1 = c("text present convention", "available accessible format*")
+  )
+
+# Article 50 - Authentic Texts
+entry_cat_Article50 <- list(
+  Paragraph_1 = c("texts present convention", "authentic"),
+  Paragraph_2 = c("undersigned", "plenipotentiar*", "duly authorized")
+  )
+```
+
+
+```{r Create Dictionary}
+dict_CRPD <- dictionary(list(Article_1 = entry_cat_Article1, Article_2 = entry_cat_Article2,
+                             Article_3 = entry_cat_Article3, Article_4 = entry_cat_Article4,
+                             Article_5 = entry_cat_Article5, Article_6 = entry_cat_Article6,
+                             Article_7 = entry_cat_Article7, Article_8 = entry_cat_Article8,
+                             Article_9 = entry_cat_Article9, Article_10 = entry_cat_Article10,
+                             Article_11 = entry_cat_Article11, Article_12 = entry_cat_Article12,
+                             Article_13 = entry_cat_Article13, Article_14 = entry_cat_Article14,
+                             Article_15 = entry_cat_Article15, Article_16 = entry_cat_Article16,
+                             Article_17 = entry_cat_Article17, Article_18 = entry_cat_Article18,
+                             Article_19 = entry_cat_Article19, Article_20 = entry_cat_Article20,
+                             Article_21 = entry_cat_Article21, Article_22 = entry_cat_Article22,
+                             Article_23 = entry_cat_Article23, Article_24 = entry_cat_Article24,
+                             Article_25 = entry_cat_Article25, Article_26 = entry_cat_Article26,
+                             Article_27 = entry_cat_Article27, Article_28 = entry_cat_Article28,
+                             Article_29 = entry_cat_Article29, Article_30 = entry_cat_Article30,
+                             Article_31 = entry_cat_Article31, Article_32 = entry_cat_Article32,
+                             Article_33 = entry_cat_Article33, Article_34 = entry_cat_Article34,
+                             Article_35 = entry_cat_Article35, Article_36 = entry_cat_Article36,
+                             Article_37 = entry_cat_Article37, Article_38 = entry_cat_Article38,
+                             Article_39 = entry_cat_Article39, Article_40 = entry_cat_Article40,
+                             Article_41 = entry_cat_Article41, Article_42 = entry_cat_Article42,
+                             Article_43 = entry_cat_Article43, Article_44 = entry_cat_Article44,
+                             Article_45 = entry_cat_Article45, Article_46 = entry_cat_Article46,
+                             Article_47 = entry_cat_Article47, Article_48 = entry_cat_Article48,
+                             Article_49 = entry_cat_Article49, Article_50 = entry_cat_Article50
+                             )
+                        )
+```
+
+
+```{r Save Dictionary}
+# saveRDS(dict_CRPD, file="dictionary/dict_CRPDFull.rds")
+```
+
+
+
+

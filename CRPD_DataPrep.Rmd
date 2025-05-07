@@ -1,0 +1,201 @@
+---
+title: "CRPD Data Prep"
+author: "Theodore Ochieng"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Load Packages}
+library(tidyverse)# Also loads dplyr, ggplot2, and haven
+library(tidytext)
+library(readtext)
+```
+
+
+# Part 1: Gather and Clean Data
+```{r Import Data}
+# ---- State Reports ----
+CRPD_StateReports <- readtext("CRPD_Data/State Reports/*",  # change this to point to CRPD State Reports directory
+                              docvarsfrom = "filenames", 
+                              dvsep="_", 
+                              docvarnames = c("Country", "Session", "Year"))
+
+CRPD_StateReports <- CRPD_StateReports %>% 
+  mutate(doc_id = str_remove_all(doc_id, ".pdf"))
+
+summary(CRPD_StateReports)
+head(CRPD_StateReports) %>% 
+  as_tibble()
+
+
+# ---- Georgraphic Data ----
+un_geo_info <- read_csv("CRPD_Data/Metadata/Resources/UN_Geographic_Info.csv")
+head(un_geo_info)
+```
+
+```{r Merge Georgapic Info}
+CRPD_StateReports <- CRPD_StateReports %>% 
+  left_join(select(un_geo_info, country_area_code, region, sub_region, regional_group), by = c("Country" = "country_area_code")) %>% 
+  rename(Region = region,
+         SubRegion = sub_region,
+         RegionalGroup = regional_group)
+
+head(CRPD_StateReports)%>% 
+  as_tibble()
+```
+
+
+```{r Records by Grouping}
+# ---- Year ----
+CRPD_StateReports %>% 
+  count(Year, sort = T) %>% 
+  mutate(prop = round(n/sum(n), 4)) %>% 
+  tibble()
+
+# ---- Session ----
+CRPD_StateReports %>% 
+  count(Session, sort = T) %>% 
+  mutate(prop = round(n/sum(n), 4)) %>% 
+  tibble()
+
+# ---- Country ----
+CRPD_StateReports %>% 
+  count(Country, sort = T) %>% 
+  mutate(prop = round(n/sum(n), 4)) %>% 
+  tibble()
+
+# ---- Region ----
+CRPD_StateReports %>% 
+  count(Region, sort = T) %>% 
+  mutate(prop = round(n/sum(n), 4)) %>% 
+  tibble()
+
+# ---- Sub-Region ----
+CRPD_StateReports %>% 
+  count(SubRegion, sort = T) %>% 
+  mutate(prop = round(n/sum(n), 4)) %>% 
+  tibble()
+
+# ---- Regional Group ----
+CRPD_StateReports %>% 
+  count(RegionalGroup, sort = T) %>% 
+  mutate(prop = round(n/sum(n), 4)) %>% 
+  tibble()
+```
+
+
+```{r Check NAs}
+# Get metadata about NAs 
+CRPD_StateReports %>% 
+  naniar::miss_var_summary() %>% 
+  mutate(pct_miss = round(pct_miss, 2))
+```
+
+
+```{r Detect Language}
+CRPD_StateReports <- CRPD_StateReports %>% 
+  mutate(cld3_lang = cld3::detect_language(text),
+         .after = text)
+
+head(CRPD_StateReports) %>% 
+  tibble()
+
+CRPD_StateReports %>% 
+  count(cld3_lang, sort = T) %>% 
+  mutate(prop = round(n/sum(n), 4)) %>% 
+  tibble()
+```
+
+
+```{r See Non-English Reports}
+CRPD_StateReports %>% 
+  filter(cld3_lang != "en") %>% 
+  tibble()
+```
+
+
+```{r Select English Reports}
+CRPD_StateReports_en <- CRPD_StateReports %>% 
+  filter(cld3_lang == "en") %>% 
+  select(-cld3_lang)
+
+head(CRPD_StateReports_en)
+glimpse(CRPD_StateReports_en)
+```
+
+
+```{r Clean Data}
+CRPD_StateReports_en <- CRPD_StateReports_en %>%
+  # standardize apostrophes
+  mutate(text = str_replace_all(text, "’", "'")) %>% 
+  # remove numbers
+  mutate(text = str_replace_all(text, '[0-9]', "")) %>%
+  # remove domain names
+  mutate(text = str_replace_all(text, '[A-Za-z0-9]+\\.[A-Za-z0-9]+\\.[A-Za-z0-9]+', "")) %>%
+  mutate(text = str_replace_all(text, '[A-Za-z0-9]+\\.[A-Za-z0-9]+', "")) %>%  # e.g. avian.com
+  # remove underscore patterns
+  mutate(text = str_replace_all(text, '[A-z]+[_][A-z]+', "")) %>%
+  mutate(text = str_replace_all(text, '[A-z]+[_]', "")) %>%
+  mutate(text = str_replace_all(text, '[_][A-z]+', ""))
+```
+
+
+```{r Save Dataset}
+# write_csv(CRPD_StateReports_en, "CRPD_Data/CRPD_StateReports_English.csv")
+```
+
+
+# Part 2: Create Stopwords
+```{r Stock Stopwords}
+library(stopwords)
+
+# English stopwords - 1,298 unique words
+en_stopwords <-
+  c(stopwords("en", source = "stopwords-iso"),
+    stopwords("en", source = "snowball"),
+    stopwords("en", source = "smart")) %>%
+  unique() %>%
+  as.data.frame() %>%
+  rename("word" = ".") %>%
+  mutate(lexicon = "stopwords_pkg_english") %>%
+  rbind(distinct(tidytext::stop_words, word, .keep_all = TRUE)) %>% # get English stopwords from tidytext
+  distinct(word, .keep_all = TRUE)
+```
+
+
+```{r Custom Stopwords}
+custom.stopwords <- c(tolower(month.name[c(1:12)]))
+
+custom.stopwords <- as.data.frame(custom.stopwords) %>% 
+  rename("word" = `custom.stopwords`) %>%
+  # add lexicon in case we decide to rbind with dataframe stop_words
+  mutate(lexicon = "Custom_CRPD")
+
+custom.stopwords
+```
+
+
+```{r Create Combined Stopwords}
+# Merge stock and custom stopwords
+combined.stop_words <- 
+  rbind(en_stopwords, custom.stopwords) %>% 
+  # remove duplicate words (3 words removed)
+  distinct(word, .keep_all = TRUE)
+
+combined.stop_words
+```
+
+
+```{r Save Dataset}
+# write_csv(combined.stop_words, "CRPD_Data/combined_stopwords.csv")
+```
+
+
+```{r Remove Stopwords}
+# rm(en_stopwords, custom.stopwords)
+```
