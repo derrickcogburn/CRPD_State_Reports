@@ -1,4 +1,4 @@
-# CRPD_State_Reports
+# Uncovering Policy Priorities for Disability Inclusion: NLP and LLM Approaches to Analyzing CRPD State Reports
 This public repository contains code to facilitate replication for the paper titled: "Uncovering Policy Priorities for Disability Inclusion: NLP and LLM Approaches to Analyzing CRPD State Reports".
 
 The paper is part of a Special Collection titled "Big Data Text Analytics for Policy" which is under Cambridge University Press' Journal of Data & Policy. Below is a link to the Special Collection:
