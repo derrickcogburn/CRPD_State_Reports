@@ -16,10 +16,22 @@ library(tidytext)
 library(readtext)
 ```
 
+# Setup
+```{r Function: countByGrouping}
+countByGrouping <- function(dataset, varToGroup) {
+  dataset %>% 
+    count({{ varToGroup }}, sort = T) %>% 
+    mutate(prop = round(n/sum(n), 4)) %>% 
+    tibble() %>%
+    return()
+}
+```
+
+
 
 # Part 1: Gather and Clean Data
-```{r Import Data}
-# ---- State Reports ----
+## Import Data
+```{r Import State Reports}
 CRPD_StateReports <- readtext("CRPD_Data/State Reports/*",  # change this to point to CRPD State Reports directory
                               docvarsfrom = "filenames", 
                               dvsep="_", 
@@ -31,19 +43,41 @@ CRPD_StateReports <- CRPD_StateReports %>%
 summary(CRPD_StateReports)
 head(CRPD_StateReports) %>% 
   as_tibble()
+```
 
 
-# ---- Georgraphic Data ----
+```{r Import Geographic Data}
 un_geo_info <- read_csv("CRPD_Data/Metadata/Resources/UN_Geographic_Info.csv")
 head(un_geo_info)
+
+opt_protocol_geo_info <- read_csv("CRPD_Data/Metadata/Resources/opt_protocol_geo_info.csv")
+head(opt_protocol_geo_info)
 ```
+
 
 ```{r Merge Georgapic Info}
 CRPD_StateReports <- CRPD_StateReports %>% 
   left_join(select(un_geo_info, country_area_code, region, sub_region, regional_group), by = c("Country" = "country_area_code")) %>% 
   rename(Region = region,
          SubRegion = sub_region,
-         RegionalGroup = regional_group)
+         RegionalGroup = regional_group) %>% 
+  left_join(select(opt_protocol_geo_info, country_area_code, opt_protocol), by = c("Country" = "country_area_code")) %>% 
+  rename(OptionalProtocol = opt_protocol)
+
+head(CRPD_StateReports)%>% 
+  as_tibble()
+```
+
+```{r Import Income Level Data}
+income_level <- readxl::read_xlsx("CRPD_Data/Metadata/Resources/World Bank Income Groups.xlsx") %>% 
+  janitor::clean_names(case = "upper_camel")
+head(income_level)
+```
+
+
+```{r Merge Income Level Data}
+CRPD_StateReports <- CRPD_StateReports %>% 
+  left_join(select(income_level, Code, IncomeGroup), by = c("Country" = "Code"))
 
 head(CRPD_StateReports)%>% 
   as_tibble()
@@ -51,41 +85,13 @@ head(CRPD_StateReports)%>%
 
 
 ```{r Records by Grouping}
-# ---- Year ----
-CRPD_StateReports %>% 
-  count(Year, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4)) %>% 
-  tibble()
-
-# ---- Session ----
-CRPD_StateReports %>% 
-  count(Session, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4)) %>% 
-  tibble()
-
-# ---- Country ----
-CRPD_StateReports %>% 
-  count(Country, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4)) %>% 
-  tibble()
-
-# ---- Region ----
-CRPD_StateReports %>% 
-  count(Region, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4)) %>% 
-  tibble()
-
-# ---- Sub-Region ----
-CRPD_StateReports %>% 
-  count(SubRegion, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4)) %>% 
-  tibble()
-
-# ---- Regional Group ----
-CRPD_StateReports %>% 
-  count(RegionalGroup, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4)) %>% 
-  tibble()
+countByGrouping(CRPD_StateReports, Year)
+countByGrouping(CRPD_StateReports, Session)
+countByGrouping(CRPD_StateReports, Country)
+countByGrouping(CRPD_StateReports, Region)
+countByGrouping(CRPD_StateReports, SubRegion)
+countByGrouping(CRPD_StateReports, RegionalGroup)
+countByGrouping(CRPD_StateReports, IncomeGroup)
 ```
 
 
@@ -146,12 +152,13 @@ CRPD_StateReports_en <- CRPD_StateReports_en %>%
 
 
 ```{r Save Dataset}
-# write_csv(CRPD_StateReports_en, "CRPD_Data/CRPD_StateReports_English.csv")
+write_csv(CRPD_StateReports_en, "CRPD_Data/CRPD_StateReports_English_V2.csv")
 ```
 
 
 # Part 2: Create Stopwords
 ```{r Stock Stopwords}
+# ---- Load Individual Stock Stopwords ----
 library(stopwords)
 
 # English stopwords - 1,298 unique words
@@ -165,11 +172,76 @@ en_stopwords <-
   mutate(lexicon = "stopwords_pkg_english") %>%
   rbind(distinct(tidytext::stop_words, word, .keep_all = TRUE)) %>% # get English stopwords from tidytext
   distinct(word, .keep_all = TRUE)
+
+# Spanish stopwords - 732 unique words
+es_stopwords <-
+  c(stopwords("es", source = "stopwords-iso"),
+    stopwords("es", source = "snowball")) %>%
+  unique() %>%
+  as.data.frame() %>%
+  rename("word" = ".") %>%
+  mutate(lexicon = "stopwords_pkg_spanish")
+
+# French stopwords - 689 unique words
+fr_stopwords <-
+  c(stopwords("fr", source = "stopwords-iso"),
+    stopwords("fr", source = "snowball")) %>%
+  unique() %>%
+  as.data.frame() %>%
+  rename("word" = ".") %>%
+  mutate(lexicon = "stopwords_pkg_french")
+
+# Russian stopwords - 559 unique words
+ru_stopwords <-
+  c(stopwords("ru", source = "stopwords-iso"),
+    stopwords("ru", source = "snowball")) %>%
+  unique() %>%
+  as.data.frame() %>%
+  rename("word" = ".") %>%
+  mutate(lexicon = "stopwords_pkg_russian")
+
+# ---- Combine Stock Stopwords ----
+stock.stopwords <-
+  rbind(en_stopwords, es_stopwords, fr_stopwords, ru_stopwords) %>%
+  # standardize apostrophes
+  mutate(word = str_replace_all(word, "’", "'")) %>%
+  # remove duplicate words (130 words removed)
+  distinct(word, .keep_all = TRUE)
+
+head(stock.stopwords)
+
+# remove individual stock stopwords
+rm(en_stopwords, es_stopwords, fr_stopwords, ru_stopwords)
+
+detach("package:stopwords", unload = TRUE)
+```
+
+
+## Custom Stopwords
+```{r Unigrams}
+# ---- Fetch Unigrams ----
+unigrams <- read_csv("CRPD_Data/Metadata/Metadata/unigram_counts_v2.csv")
+head(unigrams)
+
+# ---- Select by Quantile ----
+# Filter unigrams for words only in the 99th percentile
+unigrams_quant <- unigrams %>% 
+  filter(n >= quantile(n, 0.995))
+
+head(unigrams_quant)
 ```
 
 
 ```{r Custom Stopwords}
-custom.stopwords <- c(tolower(month.name[c(1:12)]))
+custom.stopwords <- c(tolower(month.name[c(1:12)]),
+                      unigrams_quant$word,
+                      "united", "nation", "nations", "unedited", "version", "versions", "advance",
+                      "suesaec", "dacuvecu", "ecnavda",
+                      "official", "oficial", "inter", "alia", "karonga", "mzimba", "mchinji", "lilongwe", 
+                      "salima", "machinga", "mulanje", "chiradzulu", "nsanje",  
+                      "english", "spanish", "russian", "french", "arabic", "original", "vis", "à", 
+                      "sites", "default", "file", "files", "wp", "content", "upload", "uploads",
+                      "http", "https", "eur", "lexuriserv", "uri")
 
 custom.stopwords <- as.data.frame(custom.stopwords) %>% 
   rename("word" = `custom.stopwords`) %>%
@@ -183,7 +255,7 @@ custom.stopwords
 ```{r Create Combined Stopwords}
 # Merge stock and custom stopwords
 combined.stop_words <- 
-  rbind(en_stopwords, custom.stopwords) %>% 
+  rbind(stock.stopwords, custom.stopwords) %>% 
   # remove duplicate words (3 words removed)
   distinct(word, .keep_all = TRUE)
 
@@ -196,6 +268,7 @@ combined.stop_words
 ```
 
 
-```{r Remove Stopwords}
-# rm(en_stopwords, custom.stopwords)
+```{r Remove Objects}
+# rm(stock.stopwords, custom.stopwords, unigrams, unigrams_quant)
 ```
+

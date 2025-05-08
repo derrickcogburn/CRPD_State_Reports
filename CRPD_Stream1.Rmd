@@ -14,10 +14,21 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)# Also loads dplyr, ggplot2, and haven
 ```
 
+# Setup
+```{r Function: countByGrouping}
+countByGrouping <- function(dataset, varToGroup) {
+  dataset %>% 
+    count({{ varToGroup }}, sort = T) %>% 
+    mutate(prop = round(n/sum(n), 4)) %>% 
+    tibble() %>%
+    return()
+}
+```
+
 
 # Part 1: Load Data
 ```{r Load Data}
-CRPD_StateReports <- read_csv("CRPD_Data/CRPD_StateReports_English.csv")
+CRPD_StateReports <- read_csv("CRPD_Data/CRPD_StateReports_English_V2.csv")
 combined_stopwords <- read_csv("CRPD_Data/combined_stopwords.csv")
 
 head(CRPD_StateReports)
@@ -26,21 +37,21 @@ head(combined_stopwords)
 
 
 ```{r Records by Grouping}
-# ---- Year ----
-CRPD_StateReports %>% 
-  count(Year) %>% 
-  mutate(prop = round(n/sum(n), 4)) %>% 
-  arrange(desc(Year))
+countByGrouping(CRPD_StateReports, Year)
+countByGrouping(CRPD_StateReports, Session)
+countByGrouping(CRPD_StateReports, Country)
+countByGrouping(CRPD_StateReports, Region)
+countByGrouping(CRPD_StateReports, SubRegion)
+countByGrouping(CRPD_StateReports, RegionalGroup)
+countByGrouping(CRPD_StateReports, IncomeGroup)
+```
 
-# ---- Session ----
-CRPD_StateReports %>% 
-  count(Session, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4))
 
-# ---- Country ----
+```{r Check NAs}
+# Get metadata about NAs 
 CRPD_StateReports %>% 
-  count(Country, sort = T) %>% 
-  mutate(prop = round(n/sum(n), 4))
+  naniar::miss_var_summary() %>% 
+  mutate(pct_miss = round(pct_miss, 2))
 ```
 
 
@@ -65,10 +76,24 @@ tibble(CRPD_StateReports_words) %>%
 ```{r Plot - Frequent Words}
 CRPD_StateReports_words %>%
   count(word, sort = TRUE) %>%
-  top_n(25) %>% 
+  slice_max(n, n = 25) %>% 
   mutate(word=reorder(word, n)) %>%
-  ggplot(aes(word,n)) +geom_col() + xlab(NULL) + ylab("Frequency") + coord_flip() +
-  geom_col(fill = "light blue")
+  ggplot(aes(word, n)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  # geom_text(aes(label = scales::comma(n)),
+  #           size = 3,
+  #           vjust = 0.5,
+  #           hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10)),
+                     labels = scales::comma) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = "Frequency") +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank())
+
+ggsave("CRPD_Data/Assets/freqUnigrams.jpg")
 ```
 
 
@@ -82,10 +107,22 @@ unigram_tf_idf <- CRPD_StateReports_words %>%
 unigram_tf_idf
 
 unigram_tf_idf %>% 
-  top_n(25) %>% 
-  ggplot(aes(reorder(word,tf_idf),tf_idf)) +geom_col() + coord_flip() + 
-  geom_col(fill = "light blue") +
-  labs(x = "")
+  slice_max(n, n = 25) %>%  
+  ggplot(aes(reorder(word,tf_idf), tf_idf)) + 
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  # geom_text(aes(label = scales::comma(n)),
+  #           size = 3,
+  #           vjust = 0.5,
+  #           hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = "TF-IDF") +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank())
+
+ggsave("CRPD_Data/Assets/unigrams_TFIDF.jpg")
 
 # Write CSV
 # unigram_tf_idf %>%
@@ -142,20 +179,33 @@ bigrams_united %>%
 bigrams_united %>%
   count(bigram, sort = TRUE) %>% 
   mutate(bigram=reorder(bigram, n)) %>% 
-  top_n(25) %>% 
-  ggplot(aes(bigram,n)) +geom_col() + xlab(NULL) + ylab("Frequency") + coord_flip() +
-  geom_col(fill = "light blue") +
-  labs(title='Frequently Used Phrases (Bigrams)')
+  slice_max(n, n = 25) %>% 
+  ggplot(aes(bigram,n)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  # geom_text(aes(label = scales::comma(n)),
+  #           size = 3,
+  #           vjust = 0.5,
+  #           hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10)),
+                     labels = scales::comma) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = "Frequency") +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank())
+
+ggsave("CRPD_Data/Assets/freqBigrams.jpg")
 ```
 
 
 ```{r Check Word Precedents and Dependents}
 bigrams_filtered %>%
-  filter(word1 == "world") %>%
+  filter(word1 == "el") %>%
   count(word1, word2, sort = TRUE)
 
 bigrams_filtered %>%
-  filter(word2 == "bank") %>%
+  filter(word2 == "el") %>%
   count(word1, word2, sort = TRUE)
 ```
 
@@ -169,10 +219,22 @@ bigram_tf_idf <- bigrams_united %>%
 bigram_tf_idf
 
 bigram_tf_idf %>%
-  top_n(25) %>% 
-  ggplot(aes(reorder(bigram,tf_idf),tf_idf)) +geom_col() + coord_flip() + 
-  geom_col(fill = "light blue") +
-  labs(x = " ", title='Bigrams: TF-IDF')
+  slice_max(n, n = 25) %>% 
+  ggplot(aes(reorder_within(bigram, tf_idf, tf_idf),tf_idf)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  # geom_text(aes(label = scales::comma(n)),
+  #           size = 3,
+  #           vjust = 0.5,
+  #           hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = "TF-IDF") +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank())
+
+ggsave("CRPD_Data/Assets/bigrams_TFIDF.jpg")
 
 # Write CSV
 # bigram_tf_idf %>%
@@ -229,25 +291,38 @@ trigrams_united %>%
 trigrams_united %>%
   count(trigram, sort = TRUE) %>% 
   mutate(trigram=reorder(trigram, n)) %>% 
-  top_n(25) %>% 
-  ggplot(aes(trigram,n)) +geom_col() + xlab(NULL) + ylab("Frequency") + coord_flip() +
-  geom_col(fill = "light blue") +
-  labs(title='Frequently Used Phrases (trigrams)')
+  slice_max(n, n = 25) %>%
+  ggplot(aes(trigram,n)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  # geom_text(aes(label = scales::comma(n)),
+  #           size = 3,
+  #           vjust = 0.5,
+  #           hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10)),
+                     labels = scales::comma) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = "Frequency") +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank())
+
+ggsave("CRPD_Data/Assets/freqTrigrams.jpg")
 ```
 
 
 ```{r Check Word Precedents and Dependents}
 trigrams_filtered %>%
   filter(word1 == "world") %>%
-  count(word1, word2, sort = TRUE)
+  count(word1, word2, word3, sort = TRUE)
 
 trigrams_filtered %>%
-  filter(word2 == "bank") %>%
-  count(word1, word2, sort = TRUE)
+  filter(word2 == "el") %>%
+  count(word1, word2, word3, sort = TRUE)
 
 trigrams_filtered %>%
   filter(word3 == "bank") %>%
-  count(word1, word2, sort = TRUE)
+  count(word1, word2, word3, sort = TRUE)
 ```
 
 
@@ -260,10 +335,22 @@ trigram_tf_idf <- trigrams_united %>%
 trigram_tf_idf
 
 trigram_tf_idf %>%
-  top_n(25) %>% 
-  ggplot(aes(reorder(trigram,tf_idf),tf_idf)) +geom_col() + coord_flip() + 
-  geom_col(fill = "light blue") +
-  labs(x = " ", title='Trigrams: TF-IDF')
+  slice_max(n, n = 25) %>%
+  ggplot(aes(reorder(trigram,tf_idf),tf_idf)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  # geom_text(aes(label = scales::comma(n)),
+  #           size = 3,
+  #           vjust = 0.5,
+  #           hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = "TF-IDF") +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank())
+
+ggsave("CRPD_Data/Assets/trigrams_TFIDF.jpg")
 
 # Write CSV
 # trigram_tf_idf %>%
@@ -271,23 +358,28 @@ trigram_tf_idf %>%
 ```
 
 
+
 # Part 3: Dictionary Analysis
-## CRPD Full Dictionary
+## Data Prep
 ```{r Load Packages}
 library(quanteda)
-```
-
-```{r Import Dictionary}
-dict_CRPD <- readRDS("CRPD_Data/Dictionary/dict_CRPDFull.rds")
+library(tidytext)
 ```
 
 
-### Data Prep
 ```{r Create Corpus}
 mycorpus <- corpus(CRPD_StateReports)
 
 # corpus statistics for the first 10 observations
 summary(mycorpus, 10)
+```
+
+
+```{r Remove Custom Stopwords}
+stock_stopwords <- combined_stopwords %>% 
+  filter(lexicon != "Custom_CRPD")
+
+head(stock_stopwords)
 ```
 
 
@@ -304,7 +396,7 @@ mytoken <-
   )
 
 mytoken<-tokens_tolower(mytoken)
-mytoken<-tokens_remove(mytoken,combined_stopwords$word)
+mytoken<-tokens_remove(mytoken,stock_stopwords$word)
 
 head(mytoken)
 ```
@@ -318,6 +410,12 @@ mydfm <- dfm(mytoken)
 ```
 
 
+## Dictionary: CRPD
+```{r Import Dictionary}
+dict_CRPD <- readRDS("CRPD_Data/Dictionary/dict_CRPDFull_v2.rds")
+```
+
+
 ### Apply Dictionary
 ```{r Full Dictionary}
 # dictionary with 1 level (category)
@@ -326,7 +424,12 @@ df.dictApplied_Category <- mytoken %>%
                 valuetype = "glob",
                 levels = 1) %>% 
   dfm() %>%
-  convert(to = "data.frame")
+  convert(to = "data.frame") %>% 
+  # Merge geographic data
+  left_join(select(CRPD_StateReports, doc_id, Region, SubRegion, RegionalGroup, OptionalProtocol, IncomeGroup),
+            by = "doc_id") %>% 
+  relocate(Region, SubRegion, RegionalGroup, OptionalProtocol, IncomeGroup, .after = doc_id) %>% 
+  mutate(OptionalProtocol = as.factor(OptionalProtocol))
 
 head(df.dictApplied_Category)
 
@@ -336,84 +439,629 @@ df.dictApplied_CatSubcategory <- mytoken %>%
                 valuetype = "glob",
                 levels = 1:2) %>% 
   dfm() %>%
-  convert(to = "data.frame")
+  convert(to = "data.frame") %>% 
+  # Merge geographic data
+  left_join(select(CRPD_StateReports, doc_id, Region, SubRegion, RegionalGroup, OptionalProtocol, IncomeGroup),
+            by = "doc_id") %>% 
+  relocate(Region, SubRegion, RegionalGroup, OptionalProtocol, IncomeGroup, .after = doc_id) %>% 
+  mutate(OptionalProtocol = as.factor(OptionalProtocol))
 
 head(df.dictApplied_CatSubcategory)
 ```
 
 
-```{r Full Dictionary - Visualization, fig.height=2.5}
+
+```{r Full Dictionary - Category Plot, fig.height=2.5}
 # Category Plot
 df.dictApplied_Category %>% 
-  select(-doc_id) %>% 
+  select(-c(doc_id, Region, SubRegion, RegionalGroup)) %>% 
   pivot_longer(everything(), names_to = "Category", values_to = "count") %>% # transpose columns to rows
   plyr::ddply("Category", plyr::colwise(sum)) %>% # aggregate counts by category
-  arrange(count) %>%
-  ggplot(aes(x=reorder(toupper(Category), count), 
-             y=count)) +
-  geom_bar(stat='identity') +
-  coord_flip()
+  mutate(prop = round(count/sum(count), 4)) %>%
+  slice_max(prop, n = 25) %>%
+  ggplot(aes(x=reorder(toupper(Category), prop), 
+             y=prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10)),
+                     labels = scales::percent) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
+
+ggsave("CRPD_Data/Assets/dict_Category.jpg")
+```
+
+```{r Full Dictionary - Category Plot - Least Represented, fig.height=2.5}
+# Category Plot
+df.dictApplied_Category %>% 
+  select(-c(doc_id, Region, SubRegion, RegionalGroup)) %>% 
+  pivot_longer(everything(), names_to = "Category", values_to = "count") %>% # transpose columns to rows
+  plyr::ddply("Category", plyr::colwise(sum)) %>% # aggregate counts by category
+  mutate(prop = round(count/sum(count), 4)) %>%
+  slice_min(prop, n = 25) %>%
+  ggplot(aes(x=reorder(toupper(Category), -prop), 
+             y=prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10)),
+                     labels = scales::percent) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
+
+ggsave("CRPD_Data/Assets/dict_Category_Least.jpg")
+```
 
 
+
+```{r Full Dictionary - Category-Subcategory Plot, fig.height=2.5}
 # Category-Subcategory Plot
 df.dictApplied_CatSubcategory %>% 
-  select(-doc_id) %>% 
+  select(-c(doc_id, Region, SubRegion, RegionalGroup)) %>% 
   pivot_longer(everything(), names_to = "CatSubcategory", values_to = "count") %>% # transpose columns to rows
   plyr::ddply("CatSubcategory", plyr::colwise(sum)) %>% # aggregate counts by category
-  arrange(count) %>%
-  top_n(25) %>% 
-  ggplot(aes(x=reorder(toupper(CatSubcategory), count), 
-             y=count)) +
-  geom_bar(stat='identity') +
-  coord_flip()
+  mutate(prop = round(count/sum(count), 4)) %>%
+  slice_max(prop, n = 25) %>% 
+  ggplot(aes(x=reorder(toupper(CatSubcategory), prop), 
+             y=prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10)),
+                     labels = scales::percent) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
+
+ggsave("CRPD_Data/Assets/dict_SubCategory.jpg")
 ```
 
 
-```{r Article 33}
-df.dictApplied_Article33 <- mytoken %>% 
-  tokens_lookup(dictionary = dict_CRPD$Article_33,
-                valuetype = "glob",
-                levels = 1) %>% 
-  dfm() %>%
-  convert(to = "data.frame")
 
-head(df.dictApplied_Article33)
-
-# Category-Subcategory Plot
-df.dictApplied_Article33 %>% 
-  select(-doc_id) %>% 
-  pivot_longer(everything(), names_to = "CatSubcategory", values_to = "count") %>% # transpose columns to rows
-  plyr::ddply("CatSubcategory", plyr::colwise(sum)) %>% # aggregate counts by category
-  arrange(count) %>%
-  top_n(25) %>% 
-  ggplot(aes(x=reorder(toupper(CatSubcategory), count), 
-             y=count)) +
-  geom_bar(stat='identity') +
-  coord_flip()
-```
-
-
-### Keyword-In-Context (KWIC)
+#### Keyword-In-Context (KWIC)
 Use this section to investigate words driving dictionary categorization.
 ```{r KWIC by Category}
 # see keywords-in-context for dictionary entries
 
 # search by words in category
-kwic(mytoken, pattern = phrase(dict_CRPD$Article_15)) %>% 
-  head(100)
+kwic(mytoken, pattern = phrase(dict_CRPD$Article_1)) %>% 
+  as_data_frame() %>% 
+  head(1000)
 
 # search by words in subcategory
-kwic(mytoken, pattern = phrase(dict_CRPD$Article_14$Paragraph_2)) %>% 
-  head(100)
+kwic(mytoken, pattern = phrase(dict_CRPD$Article_9$Paragraph_1b)) %>% 
+  as_data_frame() %>% 
+  head(1000)
 ```
 
 
 ```{r KWIC by Word}
 # search by specific word
-kwic(mytoken, pattern = phrase("respect")) %>% 
-  head(100)
+kwic(mytoken, pattern = phrase("mental integrity"), window = 10) %>% 
+  as_data_frame() %>% 
+  select(-c(from, to, pattern)) %>% 
+  head(1000)
 ```
 
 
+#### Categorical Breakdown
+##### Category
+###### Region
+```{r Plot - By Region, fig.height=2.5}
+df.dictApplied_Category %>% 
+  select(-c(doc_id, SubRegion, RegionalGroup)) %>% 
+  filter(!is.na(Region)) %>%
+  # transpose columns to rows
+  pivot_longer(cols = !Region,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("Region", "Category"), plyr::colwise(sum)) %>%   # aggregate counts by Region & Category
+  group_by(Region) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(Region = as.factor(Region)) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, Region), y = prop, 
+           fill = Region)) +
+  geom_col(alpha = 1, show.legend = FALSE) +
+  # specify colours by fill (in this case, fill = Region so colours specified by Region)
+  scale_fill_manual(values = c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3")) +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  facet_wrap(~toupper(Region), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
 
+ggsave("CRPD_Data/Assets/dict_Category_AllRegions.jpg")
+```
+
+
+```{r Plot - By Region - Least Represented, fig.height=2.5}
+df.dictApplied_Category %>% 
+  select(-c(doc_id, SubRegion, RegionalGroup)) %>% 
+  filter(!is.na(Region)) %>%
+  # transpose columns to rows
+  pivot_longer(cols = !Region,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("Region", "Category"), plyr::colwise(sum)) %>%   # aggregate counts by Region & Category
+  group_by(Region) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_min(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(Region = as.factor(Region)) %>% 
+  ggplot(aes(x = reorder_within(Category, -prop, Region), y = prop, 
+           fill = Region)) +
+  geom_col(alpha = 1, show.legend = FALSE) +
+  # specify colours by fill (in this case, fill = Region so colours specified by Region)
+  scale_fill_manual(values = c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3")) +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  facet_wrap(~toupper(Region), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_AllRegions_Least.jpg")
+```
+
+
+###### Sub-Region
+```{r Plot - By SubRegion - Africa, fig.width=3.5}
+df.dictApplied_Category %>% 
+  filter(!is.na(SubRegion)) %>%
+  filter(Region == "Africa") %>% 
+  select(-c(doc_id, Region, RegionalGroup)) %>% 
+  # transpose columns to rows
+  pivot_longer(cols = !SubRegion,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("SubRegion", "Category"), plyr::colwise(sum)) %>%  # aggregate counts by SubRegion & Category
+  group_by(SubRegion) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(SubRegion = as.factor(SubRegion)) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, SubRegion), y = prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#F8766D") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.13))) +
+  facet_wrap(~toupper(SubRegion), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_Africa.jpg")
+```
+
+
+```{r Plot - By SubRegion - Americas, fig.width=3.5}
+df.dictApplied_Category %>% 
+  filter(!is.na(SubRegion)) %>%
+  filter(Region == "Americas") %>% 
+  select(-c(doc_id, Region, RegionalGroup)) %>% 
+  # transpose columns to rows
+  pivot_longer(cols = !SubRegion,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("SubRegion", "Category"), plyr::colwise(sum)) %>%  # aggregate counts by SubRegion & Category
+  group_by(SubRegion) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(SubRegion = as.factor(SubRegion)) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, SubRegion), y = prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#A3A500") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.13))) +
+  facet_wrap(~toupper(SubRegion), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_Americas.jpg")
+```
+
+
+```{r Plot - By SubRegion - Asia, fig.height=2.5, fig.width=3.5}
+df.dictApplied_Category %>% 
+  filter(!is.na(SubRegion)) %>%
+  filter(Region == "Asia") %>% 
+  select(-c(doc_id, Region, RegionalGroup)) %>% 
+  # transpose columns to rows
+  pivot_longer(cols = !SubRegion,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("SubRegion", "Category"), plyr::colwise(sum)) %>%  # aggregate counts by SubRegion & Category
+  group_by(SubRegion) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(SubRegion = as.factor(SubRegion)) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, SubRegion), y = prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#00BF7D") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.13))) +
+  facet_wrap(~toupper(SubRegion), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_Asia.jpg")
+```
+
+
+```{r Plot - By SubRegion - Europe, fig.width=3.5}
+df.dictApplied_Category %>% 
+  filter(!is.na(SubRegion)) %>%
+  filter(Region == "Europe") %>% 
+  select(-c(doc_id, Region, RegionalGroup)) %>% 
+  # transpose columns to rows
+  pivot_longer(cols = !SubRegion,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("SubRegion", "Category"), plyr::colwise(sum)) %>%  # aggregate counts by SubRegion & Category
+  group_by(SubRegion) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(SubRegion = as.factor(SubRegion)) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, SubRegion), y = prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#00B0F6") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.13))) +
+  facet_wrap(~toupper(SubRegion), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_Europe.jpg")
+```
+
+
+```{r Plot - By SubRegion - Oceania, fig.width=3.5}
+df.dictApplied_Category %>% 
+  filter(!is.na(SubRegion)) %>%
+  filter(Region == "Oceania") %>% 
+  select(-c(doc_id, Region, RegionalGroup)) %>% 
+  # transpose columns to rows
+  pivot_longer(cols = !SubRegion,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("SubRegion", "Category"), plyr::colwise(sum)) %>%  # aggregate counts by SubRegion & Category
+  group_by(SubRegion) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(SubRegion = as.factor(SubRegion)) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, SubRegion), y = prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#E76BF3") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.13))) +
+  facet_wrap(~toupper(SubRegion), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_Oceania.jpg")
+```
+
+
+###### Optional Protocol
+```{r Plot - By OptionalProtocol, fig.height=2.5}
+df.dictApplied_Category %>% 
+  select(-c(doc_id, Region, SubRegion, RegionalGroup)) %>% 
+  filter(!is.na(OptionalProtocol)) %>%
+  # transpose columns to rows
+  pivot_longer(cols = !OptionalProtocol,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("OptionalProtocol", "Category"), plyr::colwise(sum)) %>%   # aggregate counts by OptionalProtocol & Category
+  group_by(OptionalProtocol) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(OptionalProtocol = as.factor(if_else(OptionalProtocol == 1,
+                                              "Ratified",
+                                              "Not Ratified"))) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, OptionalProtocol), y = prop, 
+             fill = OptionalProtocol)) +
+  geom_col(alpha = 1, show.legend = FALSE) +
+  # scale_fill_manual(values = c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3")) +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  facet_wrap(~toupper(OptionalProtocol), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_OptionalProtocol.jpg")
+```
+
+
+###### Income Level
+```{r Plot - By Income Level, fig.height=2.5}
+df.dictApplied_Category %>% 
+  select(-c(doc_id, Region, SubRegion, RegionalGroup, OptionalProtocol)) %>% 
+  filter(!is.na(IncomeGroup)) %>%
+  # transpose columns to rows
+  pivot_longer(cols = !IncomeGroup,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("IncomeGroup", "Category"), plyr::colwise(sum)) %>%   # aggregate counts by IncomeGroup & Category
+  group_by(IncomeGroup) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_max(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(IncomeGroup = as.factor(IncomeGroup)) %>% 
+  ggplot(aes(x = reorder_within(Category, prop, IncomeGroup), y = prop, 
+             fill = IncomeGroup)) +
+  geom_col(alpha = 1, show.legend = FALSE) +
+  # specify colours by fill (in this case, fill = IncomeGroup so colours specified by IncomeGroup)
+  scale_fill_manual(values = c("#00BF7D", "#F8766D", "#E76BF3", "#00B0F6", "#A3A500")) +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  facet_wrap(~toupper(IncomeGroup), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_IncomeGroups.jpg")
+```
+
+
+```{r Plot - By Income Level - Least Represented, fig.height=2.5}
+df.dictApplied_Category %>% 
+  select(-c(doc_id, Region, SubRegion, RegionalGroup, OptionalProtocol)) %>% 
+  filter(!is.na(IncomeGroup)) %>%
+  # transpose columns to rows
+  pivot_longer(cols = !IncomeGroup,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("IncomeGroup", "Category"), plyr::colwise(sum)) %>%   # aggregate counts by IncomeGroup & Category
+  group_by(IncomeGroup) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  slice_min(prop, n = 10) %>% 
+  ungroup() %>% 
+  mutate(IncomeGroup = as.factor(IncomeGroup)) %>% 
+  ggplot(aes(x = reorder_within(Category, -prop, IncomeGroup), y = prop, 
+             fill = IncomeGroup)) +
+  geom_col(alpha = 1, show.legend = FALSE) +
+  # specify colours by fill (in this case, fill = IncomeGroup so colours specified by IncomeGroup)
+  scale_fill_manual(values = c("#00BF7D", "#F8766D", "#E76BF3", "#00B0F6", "#A3A500")) +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10))) +
+  facet_wrap(~toupper(IncomeGroup), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_Category_IncomeGroups_Least.jpg")
+```
+
+
+## Dictionary: Disability Models
+```{r Import Dictionary}
+dict_DisabilityModels <- readRDS("CRPD_Data/Dictionary/dict_DisabilityModels_Final.rds")
+```
+
+
+### Apply Dictionary
+```{r Full Dictionary}
+# dictionary with 1 level (category)
+df.dictDisabilityModels_Applied <- mytoken %>% 
+  tokens_lookup(dictionary = dict_DisabilityModels,
+                valuetype = "glob",
+                levels = 1) %>% 
+  dfm() %>%
+  convert(to = "data.frame") %>% 
+  # Merge geographic data
+  left_join(select(CRPD_StateReports, doc_id, Region, SubRegion, RegionalGroup),
+            by = "doc_id") %>% 
+  relocate(Region, SubRegion, RegionalGroup, .after = doc_id)
+
+head(df.dictDisabilityModels_Applied)
+```
+
+
+```{r Disability Model - Category Plot}
+df.dictDisabilityModels_Applied %>% 
+  select(-c(doc_id, Region, SubRegion, RegionalGroup)) %>% 
+  pivot_longer(everything(), names_to = "Category", values_to = "count") %>% # transpose columns to rows
+  plyr::ddply("Category", plyr::colwise(sum)) %>% # aggregate counts by category
+  mutate(prop = round(count/sum(count), 4)) %>%
+  ggplot(aes(x=reorder(toupper(Category), prop), 
+             y=prop)) +
+  geom_col(alpha = 1, show.legend = FALSE, fill = "#4472C4") +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.10)),
+                     labels = scales::percent) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
+
+ggsave("CRPD_Data/Assets/dict_DisabilityModels_Global.jpg")
+```
+
+
+```{r Disability Model - Plot - By Region, fig.height=2.5}
+df.dictDisabilityModels_Applied %>% 
+  select(-c(doc_id, SubRegion, RegionalGroup)) %>% 
+  filter(!is.na(Region)) %>%
+  # transpose columns to rows
+  pivot_longer(cols = !Region,
+               names_to = "Category",
+               values_to = "Count") %>% 
+  plyr::ddply(c("Region", "Category"), plyr::colwise(sum)) %>%   # aggregate counts by Region & Category
+  group_by(Region) %>% 
+  mutate(prop = round(Count/sum(Count), 4)) %>%
+  ungroup() %>% 
+  mutate(Region = as.factor(Region)) %>% 
+  ggplot(aes(x = reorder_within(toupper(Category), prop, Region), y = prop, 
+             fill = Region)) +
+  geom_col(alpha = 1, show.legend = FALSE) +
+  # specify colours by fill (in this case, fill = Region so colours specified by Region)
+  scale_fill_manual(values = c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3")) +
+  coord_flip() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.01)),
+            size = 3,
+            vjust = 0.5,
+            hjust = -0.2) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  facet_wrap(~toupper(Region), scales = "free", ncol = 2) +
+  scale_x_reordered() +
+  labs(x = NULL,
+       y = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+ggsave("CRPD_Data/Assets/dict_DisabilityModels_AllRegions.jpg")
+```
+
+
+#### Keyword-In-Context (KWIC)
+Use this section to investigate words driving dictionary categorization.
+```{r KWIC by Category}
+# see keywords-in-context for dictionary entries
+
+# search by words in category
+kwic(mytoken, pattern = phrase(dict_DisabilityModels$Rights_Model)) %>% 
+  as_data_frame() %>% 
+  head(1000)
+```
+
+
+```{r KWIC by Word}
+# search by specific word
+kwic(mytoken, pattern = phrase("inclusive society"), window = 10) %>% 
+  as_data_frame() %>% 
+  select(-c(from, to, pattern)) %>% 
+  head(1000)
+```
 
