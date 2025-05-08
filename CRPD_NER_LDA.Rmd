@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
 #use_python("/path/to/python")
-use_python("/Users/derrickcogburn/miniconda3/envs/textmining/bin/python")
+use_python("/Users/useryourpath/miniconda3/envs/textmining/bin/python")
 ```
 
 Import necessary Python libraries.
@@ -40,7 +40,7 @@ def extract_text_pdfplumber(pdf_path):
             text += page.extract_text()
     return text
 # For some reason, I am not able to make the relative path name work here. If anyone else uses this code chunk, please change the directory path to your own directory path to the State Reports folder. 
-directory_path = '/Users/derrickcogburn/Dropbox (Personal)/Big Data Text Analytics - Spring 2024/Student Labs ITEC-SIS 724/CRPD Analysis HICSS-58/CRPD_Data/State Reports'
+directory_path = '/Users/useyourownpath/CRPD_Data/State Reports'
 documents = []
 
 for filename in os.listdir(directory_path):
